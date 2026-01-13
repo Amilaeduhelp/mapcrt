@@ -135,6 +135,35 @@
             box-shadow: 0 3px 15px rgba(102, 126, 234, 0.4);
         }
         
+        .mode-selector {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Noto Sans Sinhala', Arial, sans-serif;
+        }
+        
+        .mode-btn:hover {
+            background: #f0f4ff;
+        }
+        
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
         .controls {
             margin-top: 20px;
             display: flex;
@@ -185,19 +214,19 @@
             background: #5a6268;
         }
         
-        .points-list {
+        .items-list {
             margin-top: 20px;
             max-width: 800px;
             width: 100%;
         }
         
-        .points-list h3 {
+        .items-list h3 {
             margin-bottom: 10px;
             color: #333;
             text-align: center;
         }
         
-        .point-item {
+        .item {
             background: #f8f9fa;
             padding: 10px 15px;
             margin-bottom: 8px;
@@ -208,17 +237,17 @@
             align-items: center;
         }
         
-        .point-info {
+        .item-info {
             flex: 1;
         }
         
-        .point-name {
+        .item-name {
             font-weight: 600;
             color: #667eea;
             margin-bottom: 3px;
         }
         
-        .point-coords {
+        .item-type {
             font-size: 0.85em;
             color: #666;
         }
@@ -246,13 +275,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>ඉතිහාසය-සිතියමක් නිර්මාණය කරමු</h1>
-            <p>සිතියමේ click කර ස්ථාන සලකුණු කරන්න</p>
+            <h1>අක්ෂාංශ-දේශාංශ සිතියම් පින්තාරුව</h1>
+            <p>සිතියමේ ස්ථාන, ප්‍රදේශ සහ ගංගා සලකුණු කරන්න</p>
         </div>
         
         <div class="map-container">
             <div class="info-box">
-                <strong>භාවිතා කරන ආකාරය:</strong> සිතියමක් තෝරන්න → සිතියමේ ඕනෑම තැනක click කර ස්ථානයට නමක් ලබා දෙන්න
+                <strong>භාවිතා කරන ආකාරය:</strong> සිතියමක් තෝරන්න → ලකුණු කිරීමේ ආකාරය තෝරන්න → සිතියමේ අඳින්න
             </div>
             
             <div class="map-selector">
@@ -267,6 +296,12 @@
                 </select>
             </div>
             
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="setMode('point')">📍 ස්ථානයක්</button>
+                <button class="mode-btn" onclick="setMode('area')">🗺️ ප්‍රදේශයක්</button>
+                <button class="mode-btn" onclick="setMode('river')">〰️ ගංගාවක්</button>
+            </div>
+            
             <div class="canvas-wrapper">
                 <div class="external-label label-top" id="labelTop">▲ 9.83619</div>
                 <div class="external-label label-right" id="labelRight">▶ 81.86700</div>
@@ -277,13 +312,13 @@
             
             <div class="controls">
                 <button class="btn-success" onclick="downloadMap()">📥 පින්තූරය Download කරන්න</button>
-                <button class="btn-secondary" onclick="clearLast()">අවසාන ස්ථානය ඉවත් කරන්න</button>
+                <button class="btn-secondary" onclick="clearLast()">අවසාන අයිතමය ඉවත් කරන්න</button>
                 <button class="btn-danger" onclick="clearAll()">සියල්ල ඉවත් කරන්න</button>
             </div>
             
-            <div class="points-list" id="pointsListContainer" style="display: none;">
-                <h3>එක් කළ ස්ථාන</h3>
-                <div id="pointsList"></div>
+            <div class="items-list" id="itemsListContainer" style="display: none;">
+                <h3>එක් කළ අයිතම</h3>
+                <div id="itemsList"></div>
             </div>
         </div>
     </div>
@@ -306,7 +341,7 @@
             },
             world_ol: {
                 name: 'සා.පෙළ ලෝක',
-                url: '', // පසුව එක් කරන්න
+                url: '',
                 bounds: {
                     north: 90,
                     south: -90,
@@ -316,7 +351,7 @@
             },
             sl_al: {
                 name: 'උසස් පෙළ ලංකා',
-                url: '', // පසුව එක් කරන්න
+                url: '',
                 bounds: {
                     north: 9.83619,
                     south: 5.91853,
@@ -326,7 +361,7 @@
             },
             europe_al: {
                 name: 'උසස් පෙළ යුරෝපා',
-                url: '', // පසුව එක් කරන්න
+                url: '',
                 bounds: {
                     north: 71,
                     south: 36,
@@ -336,7 +371,7 @@
             },
             india_al: {
                 name: 'උසස් පෙළ ඉන්දියා',
-                url: '', // පසුව එක් කරන්න
+                url: '',
                 bounds: {
                     north: 35,
                     south: 8,
@@ -347,10 +382,13 @@
         };
         
         let bounds = mapConfigs.sl_ol.bounds;
-        let points = [];
+        let items = [];
         let mapImage = new Image();
         let mapLoaded = false;
         let currentMapKey = '';
+        let currentMode = 'point'; // 'point', 'area', 'river'
+        let isDrawing = false;
+        let currentPath = [];
         
         mapImage.onload = function() {
             mapLoaded = true;
@@ -382,18 +420,31 @@
             
             currentMapKey = mapKey;
             bounds = config.bounds;
-            points = []; // Clear existing points when changing map
+            items = [];
             mapLoaded = false;
             
-            // Load new map
             mapImage.crossOrigin = "anonymous";
             mapImage.src = config.url;
             
-            updatePointsList();
+            updateItemsList();
         }
         
-        // Canvas click event
-        canvas.addEventListener('click', function(e) {
+        function setMode(mode) {
+            currentMode = mode;
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Canvas cursor වෙනස් කරන්න
+            if (mode === 'point') {
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'pointer';
+            }
+        }
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', function(e) {
             if (!mapLoaded) {
                 alert('කරුණාකර මුලින්ම සිතියමක් තෝරන්න!');
                 return;
@@ -402,64 +453,218 @@
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            
-            // Convert pixel coordinates to lat/lng
             const lng = bounds.west + (x / canvas.width) * (bounds.east - bounds.west);
             const lat = bounds.north - (y / canvas.height) * (bounds.north - bounds.south);
             
-            // ස්ථානයේ නම අසන්න
-            const name = prompt('ස්ථානයේ නම ඇතුළත් කරන්න:', '');
-            
-            if (name !== null && name.trim() !== '') {
-                const point = { 
-                    lat: lat, 
-                    lng: lng, 
-                    name: name.trim() 
-                };
-                points.push(point);
-                drawMap();
-                updatePointsList();
+            if (currentMode === 'point') {
+                // තනි ස්ථානයක්
+                const name = prompt('ස්ථානයේ නම ඇතුළත් කරන්න:', '');
+                if (name !== null && name.trim() !== '') {
+                    items.push({
+                        type: 'point',
+                        lat: lat,
+                        lng: lng,
+                        name: name.trim()
+                    });
+                    drawMap();
+                    updateItemsList();
+                }
+            } else {
+                // ප්‍රදේශයක් හෝ ගංගාවක් - drawing ආරම්භ කරන්න
+                isDrawing = true;
+                currentPath = [{x: x, y: y, lat: lat, lng: lng}];
             }
         });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const lng = bounds.west + (x / canvas.width) * (bounds.east - bounds.west);
+            const lat = bounds.north - (y / canvas.height) * (bounds.north - bounds.south);
+            
+            currentPath.push({x: x, y: y, lat: lat, lng: lng});
+            drawMap();
+            drawTemporaryPath();
+        });
+        
+        canvas.addEventListener('mouseup', function(e) {
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            
+            if (currentPath.length < 2) {
+                currentPath = [];
+                return;
+            }
+            
+            // ප්‍රදේශයක් නම්, closed shape එකක් ද යන්න පරීක්ෂා කරන්න
+            if (currentMode === 'area') {
+                const firstPoint = currentPath[0];
+                const lastPoint = currentPath[currentPath.length - 1];
+                const distance = Math.sqrt(
+                    Math.pow(lastPoint.x - firstPoint.x, 2) + 
+                    Math.pow(lastPoint.y - firstPoint.y, 2)
+                );
+                
+                // ආරම්භයට 20 pixels ඇතුළත නම් close කරන්න
+                if (distance < 20) {
+                    currentPath.push(firstPoint); // Close the shape
+                    
+                    const name = prompt('ප්‍රදේශයේ නම ඇතුළත් කරන්න:', '');
+                    if (name !== null && name.trim() !== '') {
+                        items.push({
+                            type: 'area',
+                            path: currentPath.slice(),
+                            name: name.trim()
+                        });
+                        drawMap();
+                        updateItemsList();
+                    }
+                } else {
+                    alert('ප්‍රදේශය සම්පූර්ණ කිරීමට ආරම්භ ස්ථානයට ආසන්නව click කරන්න!');
+                }
+            } else if (currentMode === 'river') {
+                // ගංගාවක් - open path
+                const name = prompt('ගංගාවේ නම ඇතුළත් කරන්න:', '');
+                if (name !== null && name.trim() !== '') {
+                    items.push({
+                        type: 'river',
+                        path: currentPath.slice(),
+                        name: name.trim()
+                    });
+                    drawMap();
+                    updateItemsList();
+                }
+            }
+            
+            currentPath = [];
+        });
+        
+        function drawTemporaryPath() {
+            if (currentPath.length < 2) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(currentPath[0].x, currentPath[0].y);
+            
+            for (let i = 1; i < currentPath.length; i++) {
+                ctx.lineTo(currentPath[i].x, currentPath[i].y);
+            }
+            
+            if (currentMode === 'area') {
+                ctx.strokeStyle = 'rgba(128, 128, 128, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // ආරම්භ ස්ථානය හඳුනා ගැනීමට වටය අඳින්න
+                ctx.fillStyle = 'rgba(102, 126, 234, 0.5)';
+                ctx.beginPath();
+                ctx.arc(currentPath[0].x, currentPath[0].y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (currentMode === 'river') {
+                ctx.strokeStyle = 'rgba(128, 128, 128, 0.6)';
+                ctx.lineWidth = 6;
+                ctx.stroke();
+            }
+        }
         
         function drawMap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // සුදු පසුබිම
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // සිතියම් පින්තූරය අඳින්න
             if (mapLoaded && mapImage.complete) {
                 ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
             }
             
-            // ස්ථාන අඳින්න
-            points.forEach(point => {
-                const x = lngToX(point.lng);
-                const y = latToY(point.lat);
-                
-                // සුදු පිටත රවුම
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                // කළු තිත
-                ctx.fillStyle = '#000000';
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // නම
-                if (point.name) {
-                    ctx.fillStyle = '#000';
+            // සියලු items අඳින්න
+            items.forEach(item => {
+                if (item.type === 'point') {
+                    const x = lngToX(item.lng);
+                    const y = latToY(item.lat);
+                    
+                    // සුදු outline
                     ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 3;
-                    ctx.font = 'bold 12px Noto Sans Sinhala, Arial';
-                    ctx.strokeText(point.name, x + 6, y - 6);
-                    ctx.fillText(point.name, x + 6, y - 6);
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // කළු තිත
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // නම
+                    if (item.name) {
+                        ctx.fillStyle = '#000';
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 3;
+                        ctx.font = 'bold 12px Noto Sans Sinhala, Arial';
+                        ctx.strokeText(item.name, x + 6, y - 6);
+                        ctx.fillText(item.name, x + 6, y - 6);
+                    }
+                } else if (item.type === 'area') {
+                    // ප්‍රදේශය අඳින්න
+                    ctx.beginPath();
+                    ctx.moveTo(item.path[0].x, item.path[0].y);
+                    for (let i = 1; i < item.path.length; i++) {
+                        ctx.lineTo(item.path[i].x, item.path[i].y);
+                    }
+                    ctx.closePath();
+                    
+                    // Fill - ළා අලු පැහැය
+                    ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+                    ctx.fill();
+                    
+                    // Outline
+                    ctx.strokeStyle = 'rgba(80, 80, 80, 0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // නම (center point එකේ)
+                    if (item.name) {
+                        const centerX = item.path.reduce((sum, p) => sum + p.x, 0) / item.path.length;
+                        const centerY = item.path.reduce((sum, p) => sum + p.y, 0) / item.path.length;
+                        
+                        ctx.fillStyle = '#000';
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 3;
+                        ctx.font = 'bold 14px Noto Sans Sinhala, Arial';
+                        ctx.textAlign = 'center';
+                        ctx.strokeText(item.name, centerX, centerY);
+                        ctx.fillText(item.name, centerX, centerY);
+                        ctx.textAlign = 'left';
+                    }
+                } else if (item.type === 'river') {
+                    // ගංගාව අඳින්න
+                    ctx.beginPath();
+                    ctx.moveTo(item.path[0].x, item.path[0].y);
+                    for (let i = 1; i < item.path.length; i++) {
+                        ctx.lineTo(item.path[i].x, item.path[i].y);
+                    }
+                    
+                    // විනිවිද පෙනෙන අලු line (මහත් කළ)
+                    ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+                    ctx.lineWidth = 6;
+                    ctx.stroke();
+                    
+                    // නම (path එකේ මැද)
+                    if (item.name) {
+                        const midIndex = Math.floor(item.path.length / 2);
+                        const midPoint = item.path[midIndex];
+                        
+                        ctx.fillStyle = '#000';
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 3;
+                        ctx.font = 'italic bold 12px Noto Sans Sinhala, Arial';
+                        ctx.strokeText(item.name, midPoint.x + 6, midPoint.y - 6);
+                        ctx.fillText(item.name, midPoint.x + 6, midPoint.y - 6);
+                    }
                 }
             });
             
@@ -481,23 +686,27 @@
             return ((lng - bounds.west) / (bounds.east - bounds.west)) * canvas.width;
         }
         
-        function updatePointsList() {
-            const listContainer = document.getElementById('pointsListContainer');
-            const list = document.getElementById('pointsList');
+        function updateItemsList() {
+            const listContainer = document.getElementById('itemsListContainer');
+            const list = document.getElementById('itemsList');
             
-            if (points.length > 0) {
+            if (items.length > 0) {
                 listContainer.style.display = 'block';
                 list.innerHTML = '';
                 
-                points.forEach((point, index) => {
+                items.forEach((item, index) => {
+                    const typeText = item.type === 'point' ? '📍 ස්ථානය' : 
+                                   item.type === 'area' ? '🗺️ ප්‍රදේශය' : 
+                                   '〰️ ගංගාව';
+                    
                     const div = document.createElement('div');
-                    div.className = 'point-item';
+                    div.className = 'item';
                     div.innerHTML = `
-                        <div class="point-info">
-                            <div class="point-name">${point.name}</div>
-                            <div class="point-coords">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
+                        <div class="item-info">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-type">${typeText}</div>
                         </div>
-                        <button class="btn-remove" onclick="removePoint(${index})">ඉවත් කරන්න</button>
+                        <button class="btn-remove" onclick="removeItem(${index})">ඉවත් කරන්න</button>
                     `;
                     list.appendChild(div);
                 });
@@ -506,25 +715,25 @@
             }
         }
         
-        function removePoint(index) {
-            points.splice(index, 1);
+        function removeItem(index) {
+            items.splice(index, 1);
             drawMap();
-            updatePointsList();
+            updateItemsList();
         }
         
         function clearLast() {
-            if (points.length > 0) {
-                points.pop();
+            if (items.length > 0) {
+                items.pop();
                 drawMap();
-                updatePointsList();
+                updateItemsList();
             }
         }
         
         function clearAll() {
-            if (points.length > 0 && confirm('ඔබට සියලුම ස්ථාන ඉවත් කිරීමට අවශ්‍යද?')) {
-                points = [];
+            if (items.length > 0 && confirm('ඔබට සියලුම අයිතම ඉවත් කිරීමට අවශ්‍යද?')) {
+                items = [];
                 drawMap();
-                updatePointsList();
+                updateItemsList();
             }
         }
         
@@ -539,7 +748,6 @@
             link.click();
         }
         
-        // Initial draw
         drawMap();
     </script>
 </body>
